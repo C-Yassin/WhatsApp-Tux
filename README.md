@@ -1,6 +1,6 @@
 # WhatsApp-Tux - A Native Linux Client for WhatsApp 🐧
 
-This project is designed to bring the familiar experience of WhatsApp right to your Linux desktop. < br / > 
+This project is designed to bring the familiar experience of WhatsApp right to your Linux desktop. <br/> 
 
 🌟 Features:
 < br / > 
