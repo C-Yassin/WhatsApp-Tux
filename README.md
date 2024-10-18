@@ -2,15 +2,14 @@
 
 This project is designed to bring the familiar experience of WhatsApp right to your Linux desktop. <br/> 
 
-🌟 Features:
-< br / > 
-🖥️ Desktop Notifications: Never miss a message with real-time notifications.
-📂 Customizable Download Directory: Choose where to store your files, right from the app.
-🔄 Cross-Platform Media Download: Easily download videos across many websites(Instagram, Facebook, TikTok, Pintrest).
-🛠️ Lightweight & Fast: Designed to use minimal system resources while maintaining high performance.
+🌟 Features:<br/> 
+🖥️ Desktop Notifications: Never miss a message with real-time notifications.<br/> 
+📂 Customizable Download Directory: Choose where to store your files, right from the app.<br/> 
+🔄 Cross-Platform Media Download: Easily download videos across many websites(Instagram, Facebook, TikTok, Pintrest).<br/> 
+🛠️ Lightweight & Fast: Designed to use minimal system resources while maintaining high performance.v
 
-🚀 Getting Started
-🛠️ Installation Instructions
+🚀 Getting Started<br/> 
+🛠️ Installation Instructions<br/> 
 
 Follow these steps to get WhatsLinux up and running on your machine:
 ```bash
