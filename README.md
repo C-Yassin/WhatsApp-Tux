@@ -11,21 +11,21 @@ This project is designed to bring the familiar experience of WhatsApp right to y
 🚀 Getting Started<br/> 
 🛠️ Installation Instructions<br/> 
 
-Follow these steps to get WhatsLinux up and running on your machine:
+Follow these steps to get WhatsApp-Tux up and running on your machine:
 ```bash
 git clone https://github.com/C-Yassin/WhatsApp-Tux.git
 ```
 Navigate to the Project Directory:
 
 ```bash
-cd whatslinux
+cd WhatsApp-Tux
 ```
 Build the Application: We provide a compiled binary for most Linux distributions:
 
 ```bash
 nuitka --standalone --follow-imports --onefile --include-data-dir=/home/user/assets=assets /path/to/whatsapp.py
 ```
-Run WhatsLinux:
+Run WhatsApp-Tux:
 
 ```bash
     ./whatsapp
@@ -54,4 +54,4 @@ If you have any questions or suggestions, feel free to reach out:
 
 We look forward to your feedback and contributions! 🌍💬<br/> 
 
-Thank you for checking out WhatsLinux! 🎉 We hope you enjoy using it as much as we enjoyed building it. 🤗
+Thank you for checking out WhatsApp-Tux! 🎉 We hope you enjoy using it as much as we enjoyed building it. 🤗
