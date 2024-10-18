@@ -30,28 +30,28 @@ Run WhatsLinux:
 ```bash
     ./whatsapp
 ```
-📝 Contribution Guidelines
+📝 Contribution Guidelines<br/> 
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. 💡 All contributions are welcome, whether it's reporting bugs, suggesting features, or submitting pull requests. However, all changes will go through a review process to maintain the project's quality. ✅
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. 💡 All contributions are welcome, whether it's reporting bugs, suggesting features, or submitting pull requests. However, all changes will go through a review process to maintain the project's quality. ✅<br/> 
 
-Please read our CONTRIBUTING.md file to understand how to contribute to this project. 🎉
+Please read our CONTRIBUTING.md file to understand how to contribute to this project. 🎉<br/> 
 
-🧰 License
+🧰 License<br/> 
 
-This project is licensed under the MIT License. 📝 See the LICENSE file for more details.
+This project is licensed under the MIT License. 📝 See the LICENSE file for more details.<br/> 
 🛠️ Built With
 
     Python 🐍: The core language of this project.
     GTK+ 🖼️: For the sleek, native Linux user interface.
     Nuitka ⚙️: Compiling Python to C for optimal performance.
 
-📧 Contact
+📧 Contact<br/> 
 
 If you have any questions or suggestions, feel free to reach out:
 
     Email: chakiry140@gamil.com
     GitHub Issues: Submit an Issue
 
-We look forward to your feedback and contributions! 🌍💬
+We look forward to your feedback and contributions! 🌍💬<br/> 
 
 Thank you for checking out WhatsLinux! 🎉 We hope you enjoy using it as much as we enjoyed building it. 🤗
