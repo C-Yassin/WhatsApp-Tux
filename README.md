@@ -13,7 +13,7 @@ This project is designed to bring the familiar experience of WhatsApp right to y
 
 Follow these steps to get WhatsLinux up and running on your machine:
 ```bash
-git clone https://github.com/yourusername/whatslinux.git
+git clone https://github.com/C-Yassin/WhatsApp-Tux.git
 ```
 Navigate to the Project Directory:
 
