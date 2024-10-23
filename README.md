@@ -32,15 +32,15 @@ Navigate to the Project Directory:
 ```bash
 cd WhatsApp-Tux
 ```
-Build the Application: We provide a compiled binary for most Linux distributions:
+compile it (i suggest using Nuitka, you can use Pyinstall)
 
 ```bash
-nuitka --standalone --follow-imports --onefile --include-data-dir=/home/user/assets=assets /path/to/whatsapp.py
+nuitka --standalone --follow-imports --onefile --include-data-dir=assets=assets main.py
 ```
 Run WhatsApp-Tux:
 
 ```bash
-    ./WhatsApp-Tux
+    ./whatsapp-tux.bin
 ```
 📝 Contribution Guidelines<br/> 
 
