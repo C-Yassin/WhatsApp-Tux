@@ -13,6 +13,18 @@ This project is designed to bring the familiar experience of WhatsApp right to y
 
 Follow these steps to get WhatsApp-Tux up and running on your machine:
 ```bash
+sudo add-apt-repository ppa:yassin-dev/whatsapp-tux-ppa
+sudo apt update
+```
+```bash
+apt install whatsapp-tux
+```
+Run WhatsApp-Tux:
+```bash
+    whatsapp-tux
+```
+And For Developers:
+```bash
 git clone https://github.com/C-Yassin/WhatsApp-Tux.git
 ```
 Navigate to the Project Directory:
@@ -28,7 +40,7 @@ nuitka --standalone --follow-imports --onefile --include-data-dir=/home/user/ass
 Run WhatsApp-Tux:
 
 ```bash
-    ./whatsapp
+    ./WhatsApp-Tux
 ```
 📝 Contribution Guidelines<br/> 
 
