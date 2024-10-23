@@ -61,7 +61,7 @@ This project is licensed under the MIT License. 📝 See the LICENSE file for mo
 
 If you have any questions or suggestions, feel free to reach out:
 
-    Email: chakiry140@gamil.com
+    Email: chakiry341@gamil.com
     GitHub Issues: Submit an Issue
 
 We look forward to your feedback and contributions! 🌍💬<br/> 
