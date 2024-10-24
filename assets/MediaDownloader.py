@@ -9,7 +9,7 @@ from gi.repository import Gtk, Gdk, GLib
 gi.require_version("Gtk", "3.0")
 
 # Constants
-CONFIG_FILE = "/home/yassin/Desktop/c/assets/configs/config.json"
+CONFIG_FILE = "assets/configs/config.json"
 
 
 class MediaDownloader(Gtk.Window):
@@ -21,7 +21,7 @@ class MediaDownloader(Gtk.Window):
         self.download_directory = self.load_download_directory()  # Load saved directory
         self.output_filename = None  # Single output filename reference
 
-        self.set_icon_from_file("/home/yassin/Desktop/c/assets/icons/gog.png")
+        self.set_icon_from_file("assets/icons/gog.png")
 
         # UI Layout
         self.set_border_width(10)
