@@ -9,7 +9,7 @@ class AboutDialog(Gtk.Window):
         super().__init__(title="About Us")
         self.set_border_width(10)
         self.set_size_request(400, 300)
-        self.set_icon_from_file("/home/yassin/Desktop/c/assets/icons/gog.png")
+        self.set_icon_from_file("assets/icons/gog.png")
         self.set_resizable(False)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
@@ -31,7 +31,7 @@ class AboutDialog(Gtk.Window):
         vbox.pack_start(version_label, True, True, 0)
 
         # Load the image only if not loaded already (lazy loading)
-        image_path = "/home/yassin/Desktop/c/assets/icons/icon.png"
+        image_path = "assets/icons/icon.png"
         if not hasattr(self, 'scaled_pixbuf'):
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_path)
             self.scaled_pixbuf = pixbuf.scale_simple(100, 100, GdkPixbuf.InterpType.BILINEAR)
