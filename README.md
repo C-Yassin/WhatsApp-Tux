@@ -6,7 +6,7 @@ This project is designed to bring the familiar experience of WhatsApp right to y
 🖥️ Desktop Notifications: Never miss a message with real-time notifications.<br/> 
 📂 Customizable Download Directory: Choose where to store your files, right from the app.<br/> 
 🔄 Cross-Platform Media Download: Easily download videos across many websites(Instagram, Facebook, TikTok, Pintrest).<br/> 
-🛠️ Lightweight & Fast: Designed to use minimal system resources while maintaining high performance.v
+🛠️ Lightweight & Fast: Designed to use minimal system resources while maintaining high performance.
 
 🚀 Getting Started<br/> 
 🛠️ Installation Instructions<br/> 
