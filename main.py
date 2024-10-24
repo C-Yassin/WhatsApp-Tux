@@ -1,6 +1,6 @@
 import sys, os, json, subprocess, webbrowser,requests, shutil
 from urllib import parse
-from PyQt6.QtCore import QUrl, Qt, QTimer, QRect
+from PyQt6.QtCore import QUrl, Qt, QRect, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPainter, QPixmap, QColor, QIcon,QCursor,QShortcut,QAction,QKeySequence
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu, QSystemTrayIcon,QFileDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -14,9 +14,9 @@ from assets.about import AboutDialog
 from assets.hashing import HashPassword
 from assets.passwordManager import LoginWindow, SetPasswordWindow
 
-PERMISSIONS_FILE = "/home/yassin/Desktop/c/assets/configs/permissions.json"
-PASSWORD_FILE = "/home/yassin/Desktop/c/assets/configs/password.json"
-CONFIG_FILE = "/home/yassin/Desktop/c/assets/configs/config.json"
+PERMISSIONS_FILE = "assets/configs/permissions.json"
+PASSWORD_FILE = "assets/configs/password.json"
+CONFIG_FILE = "assets/configs/config.json"
 
 currentIcon = ""
 currentNotificationIcon = ""
@@ -26,22 +26,93 @@ class GetSystemGUI:
         self.check_initial_theme()
 
     def check_initial_theme(self):
-        if self.is_dark_mode_enabled_linux_mint():
+        # Check if dark mode is enabled and set icons accordingly
+        if self.is_dark_mode_enabled_linux_mint() == "dark":
             global currentIcon, currentNotificationIcon
-            currentIcon = "/home/yassin/Desktop/c/assets/icons/whatsapp.svg"
-            currentNotificationIcon = "/home/yassin/Desktop/c/assets/icons/whatsapp_noti.svg"
+            currentIcon = "assets/icons/whatsapp.svg"
+            currentNotificationIcon = "assets/icons/whatsapp_noti.svg"
         else:
-            currentIcon = "/home/yassin/Desktop/c/assets/icons/white_whatsapp.png"
-            currentNotificationIcon = "/home/yassin/Desktop/c/assets/icons/white_whatsapp_noti.png"
+            currentIcon = "assets/icons/white_whatsapp.png"
+            currentNotificationIcon = "assets/icons/white_whatsapp_noti.png"
 
     def is_dark_mode_enabled_linux_mint(self):
-        try:
-            cmd = ['gsettings', 'get', 'org.cinnamon.desktop.interface', 'gtk-theme']
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        cmd = ['gsettings', 'get', 'org.cinnamon.desktop.interface', 'gtk-theme']
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # Get the theme name and convert to lowercase
+        theme = result.stdout.strip().lower()
+        # Check if the theme name indicates dark or mixed mode
+        if 'dark' in theme:
+            return "dark"
+        else:
+            return "light"
+class UpdateWorker(QThread):
+    
+    def __init__(self, webView):
+        super().__init__()
+        self.webView = webView
+
+    def run(self):
+        while True:
+            self.notifications_worker = NotificationsCountWorker(self.webView.browser_widget, self.webView.ggui)
+            self.notifications_worker.result.connect(self.webView.update_tray_icon_with_unread_count)
             
-            return 'dark' in result.stdout.lower()
-        except Exception as e:
-            return False
+            # Start the worker to get unread messages count
+            self.notifications_worker.start()
+            import time
+            time.sleep(1)  # Simulating a delay (3 seconds)
+    
+class MediaDownloadWorker(QThread):
+    def __init__(self, resolved_url):
+        super().__init__()
+        self.resolved_url = resolved_url
+
+    def run(self):
+        MediaDownloader(self.resolved_url)  # Perform the download
+
+class NotificationsCountWorker(QThread):
+    result = pyqtSignal(int)
+
+    def __init__(self, browser_widget, ggui):
+        super().__init__()
+        self.browser_widget = browser_widget
+        self.ggui = ggui
+    def run(self):
+        """Request unread count from JavaScript and wait for the result."""
+        self.get_unread_count()
+        self.ggui.check_initial_theme()
+
+    def get_unread_count(self):
+        """Run JavaScript to get the unread message count and emit the result."""
+        script = """
+        (function() {
+            const unreadElements = document.querySelectorAll("span[aria-label*='unread message']");
+            let unreadCount = 0;
+            unreadElements.forEach(element => {
+                const count = parseInt(element.textContent);
+                if (!isNaN(count)) {
+                    unreadCount += count;
+                }
+            });
+            return unreadCount;
+        })();
+        """
+        # JavaScript execution must happen in the main thread, so use the browser_widget's page to run the script
+        self.browser_widget.page().runJavaScript(script, self.handle_unread_count)
+
+    def handle_unread_count(self, unread_count):
+        """Handle the result of the JavaScript unread count and emit it."""
+        self.result.emit(unread_count)
+
+class InternetCheckWorker(QThread):
+    internet_checked = pyqtSignal(bool)
+
+    def run(self):
+        try:
+            response = requests.get("http://www.google.com", timeout=5)
+            self.internet_checked.emit(response.status_code == 200)
+        except:
+            self.internet_checked.emit(False)
 
 class CustomWebEngineView(QWebEngineView):
     def __init__(self, parent=None):
@@ -107,7 +178,8 @@ class CustomWebEngineView(QWebEngineView):
                     resolvedUrl = clean_url
             else:
                 resolvedUrl = link
-            MediaDownloader(resolvedUrl)
+            self.media_download_worker = MediaDownloadWorker(resolvedUrl)
+            self.media_download_worker.start()
 
     def resolve_url(self, short_url):
         response = requests.head(short_url, allow_redirects=True)
@@ -139,33 +211,16 @@ class WebAppViewer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("WhatsApp-Tux")
+        self.isConnected = True
         self.settings_window = None
-        if self.check_internet():
-            profile = QWebEngineProfile("MyCustomProfile", self)
-            profile.setHttpUserAgent(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            )
-            profile.setNotificationPresenter(self.handle_notification)
-            self.browser_widget = CustomWebEngineView(profile)
-
-            self.browser_widget.setUrl(QUrl("https://web.whatsapp.com"))
-            self.setCentralWidget(self.browser_widget)
-            self.browser_widget.page().loadFinished.connect(self.on_load_finished)
-            self.browser_widget.page().featurePermissionRequested.connect(self.handle_permission_request)
-
-            self.permissions = self.load_permissions()
-
-            if not self.permissions.get('about_shown', False):
-                self.browser_widget.page().loadFinished.connect(self.show_about_dialog)
-                self.permissions['about_shown'] = True
-                self.save_permissions(self.permissions)
-        else:
-            self.show_no_connection_screen()
+        self.internet_worker = InternetCheckWorker()
+        self.internet_worker.internet_checked.connect(self.check_internet)
+        self.internet_worker.start()
 
         self.shortcut = QShortcut(QKeySequence(Qt.Modifier.ALT | Qt.Key.Key_H), self)
         self.shortcut.activated.connect(self.show_about_dialog)
 
-        WindowPixmap = QPixmap("/home/yassin/Desktop/c/assets/icons/gog.png")
+        WindowPixmap = QPixmap("assets/icons/gog.png")
         scaled_pixmap = WindowPixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)        
         self.setWindowIcon(QIcon(scaled_pixmap))
 
@@ -183,10 +238,6 @@ class WebAppViewer(QMainWindow):
 
         tray_menu = QMenu()
         
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_unread_messages)
-        self.timer.start(1000)  # Check every 10 seconds
-
         settings_action = QAction("Settings", self)
         settings_action.triggered.connect(self.show_settings_window)
         tray_menu.addAction(settings_action)
@@ -202,6 +253,33 @@ class WebAppViewer(QMainWindow):
 
         self.dialog = None
 
+    def check_internet(self, is_connected):
+        if is_connected:
+            self.isConnected = True
+            profile = QWebEngineProfile("MyCustomProfile", self)
+            profile.setHttpUserAgent(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            )
+            profile.setNotificationPresenter(self.handle_notification)
+            self.browser_widget = CustomWebEngineView(profile)
+
+            self.ggui = GetSystemGUI()
+            
+            self.browser_widget.setUrl(QUrl("https://web.whatsapp.com"))
+            self.setCentralWidget(self.browser_widget)
+            self.browser_widget.page().loadFinished.connect(self.on_load_finished)
+            self.browser_widget.page().featurePermissionRequested.connect(self.handle_permission_request)
+
+            self.permissions = self.load_permissions()
+
+            if not self.permissions.get('about_shown', False):
+                self.browser_widget.page().loadFinished.connect(self.show_about_dialog)
+                self.permissions['about_shown'] = True
+                self.save_permissions(self.permissions)
+        else:
+            self.isConnected = False
+            self.show_no_connection_screen()
+    
     def show_settings_window(self, widget):
         """Open a settings window with enhanced styling and descriptions."""
         if not self.settings_window:
@@ -460,43 +538,18 @@ class WebAppViewer(QMainWindow):
             self.browser_widget.deleteLater()
             self.browser_widget = None
 
-    def check_internet(self):
-        try:
-            response = requests.get("http://www.google.com", timeout=5)
-            return response.status_code == 200
-        except requests.ConnectionError:
-            return False
-        except requests.Timeout:
-            return False
-
     def handle_notification(self, notification: QWebEngineNotification):
         sender_name = notification.title()
-        icon = "/home/yassin/Desktop/c/assets/icons/icon.png" # Get the URL of the icon
+        icon = "assets/icons/icon.png" # Get the URL of the icon
         
         message = f"You have a new message from {sender_name}!"
         
         os.system(f'notify-send -u normal "{message}" -i {icon}')
-
-    def check_unread_messages(self):
-        """Run JavaScript to get the unread message count and update the tray icon."""
-        if self.check_internet() == False:
-            return
-        script = """
-        (function() {
-            const unreadElements = document.querySelectorAll("span[aria-label*='unread message']");
-            let unreadCount = 0;
-            unreadElements.forEach(element => {
-                const count = parseInt(element.textContent);
-                if (!isNaN(count)) {
-                    unreadCount += count;
-                }
-            });
-            return unreadCount;
-        })();
-        """
-        ggui = GetSystemGUI()
-        ggui.check_initial_theme()
-        self.browser_widget.page().runJavaScript(script, self.update_tray_icon_with_unread_count)
+        self.notifications_worker = NotificationsCountWorker(self.browser_widget, self.ggui)
+        self.notifications_worker.result.connect(self.update_tray_icon_with_unread_count)
+        
+        # Start the worker to get unread messages count
+        self.notifications_worker.start()
         self.OpenClickedLink()
 
     def OpenClickedLink(self):
@@ -529,18 +582,26 @@ class WebAppViewer(QMainWindow):
             icon_with_count = self.create_tray_icon_with_count(unread_count)
             self.tray_icon.setIcon(icon_with_count)
         else:
-            pixmap = QPixmap(currentIcon)
-            scaled_pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            icon = QIcon(scaled_pixmap)
-            self.tray_icon.setIcon(icon)
-            self.tray_icon.setToolTip("WhatsApp-Tux")
-            WindowPixmap = QPixmap("/home/yassin/Desktop/c/assets/icons/gog.png")
-            scaled_pixmap = WindowPixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)  # Scale to 64x64 with smooth scaling
-            self.setWindowIcon(QIcon(scaled_pixmap))
+            current_window_icon = self.windowIcon()
+            new_icon_path = "assets/icons/gog.png"
+            new_window_pixmap = QPixmap(new_icon_path)
+            scaled_window_pixmap = new_window_pixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+            # Only update if the current window icon is different
+            if current_window_icon.pixmap(32).toImage() != scaled_window_pixmap.toImage():
+                # Set the tray icon
+                pixmap = QPixmap(currentIcon)
+                scaled_pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                icon = QIcon(scaled_pixmap)
+                self.tray_icon.setIcon(icon)
+                self.tray_icon.setToolTip("WhatsApp-Tux")
+
+                # Set the window icon if different
+                self.setWindowIcon(QIcon(scaled_window_pixmap))
 
     def create_tray_icon_with_count(self, unread_count):
         """Overlay the unread count on the tray icon."""
-        icon_with_count = QPixmap("/home/yassin/Desktop/c/assets/icons/gog.png")
+        icon_with_count = QPixmap("assets/icons/gog.png")
         
         painter = QPainter(icon_with_count)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -570,6 +631,8 @@ class WebAppViewer(QMainWindow):
         if success:
             security_origin = self.browser_widget.url().host()  # Get the host for permissions
             self.reapply_permissions(security_origin)
+            self.worker = UpdateWorker(self)
+            self.worker.start()
 
     def handle_permission_request(self, security_origin, feature):
         """Automatically grant permissions based on user settings."""
@@ -627,12 +690,12 @@ class WebAppViewer(QMainWindow):
     def paintEvent(self, event):
         """Draw the custom 'No internet' message."""
         super().paintEvent(event)
-        if not self.check_internet():
+        if not self.isConnected:
             painter = QPainter(self)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.fillRect(self.rect(), QColor("#1E272C"))
 
-            pixmap = QPixmap("/home/yassin/Desktop/c/assets/icons/icon.png")  # Replace with the actual path to your icon
+            pixmap = QPixmap("assets/icons/icon.png")  # Replace with the actual path to your icon
             pixmap_scaled = pixmap.scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             icon_x = (self.width() - pixmap_scaled.width()) // 2
             icon_y = self.height() // 3 - pixmap_scaled.height() // 2
