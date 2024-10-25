@@ -1,5 +1,5 @@
 import gi
-from gi.repository import Gtk,Gdk
+from gi.repository import Gtk,Gdk,GdkPixbuf
 from assets.hashing import HashPassword
 gi.require_version("Gtk", "3.0")
 
@@ -26,7 +26,8 @@ class SetPasswordWindow(Gtk.Window):
         self.password_entry.set_placeholder_text("Enter Password")
         self.password_entry.set_visibility(False)  # Hide password input
         vbox.pack_start(self.password_entry, False, False, 0)
-
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale("assets/icons/gog.png", 32, 32, True)
+        self.set_icon(pixbuf)
         # Confirm password input (for setting password)
         self.confirm_password_entry = Gtk.Entry()
         self.confirm_password_entry.set_placeholder_text("Confirm Password")
@@ -40,12 +41,22 @@ class SetPasswordWindow(Gtk.Window):
         # Set password button
         self.set_button = Gtk.Button(label="Set Password")
         self.set_button.connect("clicked", self.on_set_password)
+        self.set_button.connect("enter-notify-event", self.on_button_hover)
+        self.set_button.connect("leave-notify-event", self.on_button_leave)
         self.connect("key-press-event", self.on_key_press)
         vbox.pack_start(self.set_button, False, False, 0)
 
         # Show the window
         self.show_all()
         # Show the window
+    def on_button_hover(self, widget, event):
+        # Change cursor to a hand when hovering over the button
+        cursor = Gdk.Cursor.new(Gdk.CursorType.HAND2)
+        widget.get_window().set_cursor(cursor)
+
+    def on_button_leave(self, widget, event):
+        # Change cursor back to default when leaving the button
+        widget.get_window().set_cursor(None)
     def on_key_press(self, widget, event):
         # Check if the "Enter" key was pressed
         if event.keyval == Gdk.KEY_Return or event.keyval == Gdk.KEY_KP_Enter:
@@ -81,7 +92,8 @@ class LoginWindow(Gtk.Window):
         self.set_resizable(False)
         self.set_keep_above(True)  # Make window stay on top
         self.set_position(Gtk.WindowPosition.CENTER) 
-
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale("assets/icons/gog.png", 32, 32, True)
+        self.set_icon(pixbuf)
         # UI Elements
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.add(vbox)
@@ -102,6 +114,8 @@ class LoginWindow(Gtk.Window):
 
         # Login button
         self.login_button = Gtk.Button(label="Login")
+        self.login_button.connect("enter-notify-event", self.on_button_hover)
+        self.login_button.connect("leave-notify-event", self.on_button_leave)
         self.login_button.connect("clicked", self.on_login)
         vbox.pack_start(self.login_button, False, False, 0)
         self.connect("key-press-event", self.on_key_press)
@@ -113,6 +127,14 @@ class LoginWindow(Gtk.Window):
             print("Enter key pressed")
             self.on_login(None)
 
+    def on_button_hover(self, widget, event):
+        # Change cursor to a hand when hovering over the button
+        cursor = Gdk.Cursor.new(Gdk.CursorType.HAND2)
+        widget.get_window().set_cursor(cursor)
+
+    def on_button_leave(self, widget, event):
+        # Change cursor back to default when leaving the button
+        widget.get_window().set_cursor(None)
     def on_login(self, widget):
         """Handler for verifying password during login"""
         input_password = self.password_entry.get_text()
