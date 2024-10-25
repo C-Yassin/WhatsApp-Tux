@@ -1,6 +1,6 @@
 import sys, os, json, subprocess, webbrowser,requests, shutil
 from urllib import parse
-from PyQt6.QtCore import QUrl, Qt, QRect, QThread, pyqtSignal
+from PyQt6.QtCore import QUrl, Qt, QRect, QThread, pyqtSignal,QEvent
 from PyQt6.QtGui import QFont, QPainter, QPixmap, QColor, QIcon,QCursor,QShortcut,QAction,QKeySequence
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu, QSystemTrayIcon,QFileDialog
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -8,7 +8,7 @@ from PyQt6.QtWebEngineCore import QWebEngineNotification, QWebEngineProfile, QWe
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('GdkPixbuf', '2.0')
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk,GdkPixbuf
 from assets.MediaDownloader import MediaDownloader
 from assets.about import AboutDialog
 from assets.hashing import HashPassword
@@ -59,6 +59,7 @@ class UpdateWorker(QThread):
             
             # Start the worker to get unread messages count
             self.notifications_worker.start()
+            self.webView.check_for_clicked_link()
             import time
             time.sleep(1)  # Simulating a delay (3 seconds)
     
@@ -207,6 +208,7 @@ class CustomWebEngineView(QWebEngineView):
             # Start the download
             download_item.setDownloadFileName(save_path)
             download_item.accept()
+
 class WebAppViewer(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -220,9 +222,10 @@ class WebAppViewer(QMainWindow):
         self.shortcut = QShortcut(QKeySequence(Qt.Modifier.ALT | Qt.Key.Key_H), self)
         self.shortcut.activated.connect(self.show_about_dialog)
 
-        WindowPixmap = QPixmap("assets/icons/gog.png")
-        scaled_pixmap = WindowPixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)        
-        self.setWindowIcon(QIcon(scaled_pixmap))
+        self.shortcut_exit = QShortcut(QKeySequence(Qt.Modifier.ALT | Qt.Key.Key_F4), self)
+        self.shortcut_exit.activated.connect(self.closeEvent)
+
+        self.set_main_icon()
 
         self.setAutoFillBackground(True)
         palette = self.palette()
@@ -233,6 +236,7 @@ class WebAppViewer(QMainWindow):
         pixmap = QPixmap(currentIcon)
         scaled_pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         icon = QIcon(scaled_pixmap)
+        self.tray_icon.setToolTip("WhatsApp-Tux")
         self.tray_icon.setIcon(icon)
         self.isHidden = True
 
@@ -252,7 +256,7 @@ class WebAppViewer(QMainWindow):
         self.tray_icon.show()  # Show the tray icon
 
         self.dialog = None
-
+        
     def check_internet(self, is_connected):
         if is_connected:
             self.isConnected = True
@@ -262,14 +266,13 @@ class WebAppViewer(QMainWindow):
             )
             profile.setNotificationPresenter(self.handle_notification)
             self.browser_widget = CustomWebEngineView(profile)
-
+         ##   self.browser_widget.page().linkHovered.connect(self.acceptNavigationRequest)
             self.ggui = GetSystemGUI()
             
             self.browser_widget.setUrl(QUrl("https://web.whatsapp.com"))
             self.setCentralWidget(self.browser_widget)
             self.browser_widget.page().loadFinished.connect(self.on_load_finished)
             self.browser_widget.page().featurePermissionRequested.connect(self.handle_permission_request)
-
             self.permissions = self.load_permissions()
 
             if not self.permissions.get('about_shown', False):
@@ -289,6 +292,9 @@ class WebAppViewer(QMainWindow):
             self.settings_window.set_resizable(False)
             self.settings_window.set_keep_above(True)  # Make window stay on top
             self.settings_window.set_position(Gtk.WindowPosition.CENTER)  # Center the window
+            
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale("assets/icons/gog.png", 32, 32, True)
+            self.settings_window.set_icon(pixbuf)
 
             vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
             self.settings_window.add(vbox)
@@ -304,6 +310,8 @@ class WebAppViewer(QMainWindow):
             vbox.pack_start(password_description, False, False, 0)
 
             password_checkbox = Gtk.CheckButton(label="Enable Password")
+            password_checkbox.connect("enter-notify-event", self.on_button_hover)
+            password_checkbox.connect("leave-notify-event", self.on_button_leave)
             if os.path.exists(PASSWORD_FILE):
                 password_checkbox.set_active(True)
             password_checkbox.connect("toggled", self.on_toggle_password)  # Define a handler to manage password logic
@@ -321,15 +329,21 @@ class WebAppViewer(QMainWindow):
 
             self.notifications_checkbox = Gtk.CheckButton(label="Enable Notifications")
             self.notifications_checkbox.set_active(permissions.get('notifications', True))
+            self.notifications_checkbox.connect("enter-notify-event", self.on_button_hover)
+            self.notifications_checkbox.connect("leave-notify-event", self.on_button_leave)
             self.notifications_checkbox.connect("toggled", self.save_toggle_state)  # Define the handler
             vbox.pack_start(self.notifications_checkbox, False, False, 0)
 
             self.audio_checkbox = Gtk.CheckButton(label="Enable Audio")
             self.audio_checkbox.set_active(permissions.get('audio', True))
+            self.audio_checkbox.connect("enter-notify-event", self.on_button_hover)
+            self.audio_checkbox.connect("leave-notify-event", self.on_button_leave)
             self.audio_checkbox.connect("toggled", self.save_toggle_state)  # Define the handler
             vbox.pack_start(self.audio_checkbox, False, False, 0)
 
             self.video_checkbox = Gtk.CheckButton(label="Enable Video")
+            self.video_checkbox.connect("enter-notify-event", self.on_button_hover)
+            self.video_checkbox.connect("leave-notify-event", self.on_button_leave)
             self.video_checkbox.set_active(permissions.get('video', True))
             self.video_checkbox.connect("toggled", self.save_toggle_state)  # Define the handler
             vbox.pack_start(self.video_checkbox, False, False, 0)
@@ -343,11 +357,16 @@ class WebAppViewer(QMainWindow):
 
             self.download_directory = self.load_download_directory() 
             change_directory_button = Gtk.Button(label="Change")
+            change_directory_button.connect("enter-notify-event", self.on_button_hover)
+            change_directory_button.connect("leave-notify-event", self.on_button_leave)
+
             change_directory_button.set_size_request(60, 30)  # Set button size to make it small and cute
             change_directory_button.connect("clicked", self.choose_directory)
             hbox.pack_end(change_directory_button, False, False, 0)
 
             clear_cookies_button = Gtk.Button(label="Reset")
+            clear_cookies_button.connect("enter-notify-event", self.on_button_hover)
+            clear_cookies_button.connect("leave-notify-event", self.on_button_leave)
             clear_cookies_button.get_style_context().add_class("warning-label")
             clear_cookies_button.connect("clicked", self.on_clear_cookies)
             vbox.pack_start(clear_cookies_button, False, False, 0)
@@ -375,11 +394,22 @@ class WebAppViewer(QMainWindow):
                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             )
             close_button = Gtk.Button(label="Close Settings")
+            close_button.connect("enter-notify-event", self.on_button_hover)
+            close_button.connect("leave-notify-event", self.on_button_leave)
             close_button.connect("clicked", lambda w: self.destroy_menu_settings(None))
             vbox.pack_start(close_button, False, False, 0)
 
             self.settings_window.show_all()
 
+    def on_button_hover(self, widget, event):
+        # Change cursor to a hand when hovering over the button
+        display = Gdk.Display.get_default()
+        cursor = Gdk.Cursor.new_from_name(display, "pointer")
+        widget.get_window().set_cursor(cursor)
+
+    def on_button_leave(self, widget, event):
+        # Change cursor back to default when leaving the button
+        widget.get_window().set_cursor(None)
     def destroy_menu_settings(self, widgget):
         self.settings_window.close()
         self.settings_window.destroy()
@@ -433,10 +463,9 @@ class WebAppViewer(QMainWindow):
                     modal=True,
                     message_type=Gtk.MessageType.QUESTION,
                     buttons=Gtk.ButtonsType.OK_CANCEL,
-                    text="Do you want to disable the password? This will remove the password protection."
+                    text="Do you want to disable the password?\n\nThis will remove the password protection."
                 )
                 response = dialog.run()
-
                 if response == Gtk.ResponseType.OK:
                     dialog.destroy()
                     hp.on_reset_password()
@@ -451,15 +480,19 @@ class WebAppViewer(QMainWindow):
                     modal=True,
                     message_type=Gtk.MessageType.QUESTION,
                     buttons=Gtk.ButtonsType.OK_CANCEL,
-                    text="Do you want to disable the password? This will remove the password protection."
+                    text="Do you want to disable the password?\n\nThis will remove the password protection."
                 )
                 response = dialog.run()
-
                 if response == Gtk.ResponseType.OK:
                     dialog.destroy()
                     hp.on_reset_password()
                 else:
                     dialog.destroy()
+
+    def set_main_icon(self):
+        WindowPixmap = QPixmap("assets/icons/gog.png")
+        scaled_pixmap = WindowPixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)        
+        self.setWindowIcon(QIcon(scaled_pixmap))
 
     def show_about_dialog(self):
             """Show the About Us dialog."""
@@ -550,22 +583,19 @@ class WebAppViewer(QMainWindow):
         
         # Start the worker to get unread messages count
         self.notifications_worker.start()
-        self.OpenClickedLink()
 
-    def OpenClickedLink(self):
+    def SetupClickedLink(self):
         js = """
         document.addEventListener('click', function(event) {
             let target = event.target;
             if (target.tagName === 'A' && target.href.startsWith('http')) {
                 event.preventDefault();
                 let clickedLink = target.href;
-                window.clickedLink = clickedLink;  // Store the clicked URL in a global variable
+                window.clickedLink = clickedLink;  // Store the clicked URL
             }
-        }, { once: true });  // Ensure the event listener is removed after the first click
+        });
         """
         self.browser_widget.page().runJavaScript(js)
-
-        self.check_for_clicked_link()
 
     def check_for_clicked_link(self):
         self.browser_widget.page().runJavaScript("window.clickedLink;", self.handle_link_click)
@@ -574,7 +604,6 @@ class WebAppViewer(QMainWindow):
         if link:
             webbrowser.open(link)  # Open the clicked link
             self.browser_widget.page().runJavaScript("window.clickedLink = null;")
-            self.OpenClickedLink()
             
     def update_tray_icon_with_unread_count(self, unread_count):
         """Update the tray icon based on the unread message count."""
@@ -582,22 +611,11 @@ class WebAppViewer(QMainWindow):
             icon_with_count = self.create_tray_icon_with_count(unread_count)
             self.tray_icon.setIcon(icon_with_count)
         else:
-            current_window_icon = self.windowIcon()
-            new_icon_path = "assets/icons/gog.png"
-            new_window_pixmap = QPixmap(new_icon_path)
-            scaled_window_pixmap = new_window_pixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-
-            # Only update if the current window icon is different
-            if current_window_icon.pixmap(32).toImage() != scaled_window_pixmap.toImage():
-                # Set the tray icon
-                pixmap = QPixmap(currentIcon)
-                scaled_pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                icon = QIcon(scaled_pixmap)
-                self.tray_icon.setIcon(icon)
-                self.tray_icon.setToolTip("WhatsApp-Tux")
-
-                # Set the window icon if different
-                self.setWindowIcon(QIcon(scaled_window_pixmap))
+            self.set_main_icon()
+            pixmap = QPixmap(currentIcon)
+            scaled_pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.icon = QIcon(scaled_pixmap)
+            self.tray_icon.setIcon(self.icon)
 
     def create_tray_icon_with_count(self, unread_count):
         """Overlay the unread count on the tray icon."""
@@ -629,6 +647,7 @@ class WebAppViewer(QMainWindow):
     def on_load_finished(self, success):
         """Reapply permissions when the page has finished loading."""
         if success:
+            self.SetupClickedLink()
             security_origin = self.browser_widget.url().host()  # Get the host for permissions
             self.reapply_permissions(security_origin)
             self.worker = UpdateWorker(self)
@@ -735,8 +754,7 @@ def start_qt_application():
     app = QApplication(sys.argv)
     view = WebAppViewer()
     view.showMaximized()
-    app.exec()
-
+    sys.exit(app.exec())
 def main():
     if os.path.exists(PASSWORD_FILE):
         LoginWindow(PASSWORD_FILE, start_qt_application)
