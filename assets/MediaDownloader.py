@@ -55,6 +55,8 @@ class MediaDownloader(Gtk.Window):
 
         # Directory chooser button
         self.directory_button = Gtk.Button(label="Choose Directory")
+        self.directory_button.connect("enter-notify-event", self.on_button_hover)
+        self.directory_button.connect("leave-notify-event", self.on_button_leave)
         self.directory_button.connect("clicked", self.choose_directory)
         vbox.pack_start(self.directory_button, False, False, 0)
 
@@ -76,11 +78,15 @@ class MediaDownloader(Gtk.Window):
         self.download_btn = Gtk.Button(label="Download")
         self.download_btn.set_sensitive(True)
         self.download_btn.connect("clicked", self.on_download)
+        self.download_btn.connect("enter-notify-event", self.on_button_hover)
+        self.download_btn.connect("leave-notify-event", self.on_button_leave)
         button_box.pack_start(self.download_btn, True, True, 0)
 
         # Cancel button
         self.cancel_btn = Gtk.Button(label="Cancel")
         self.cancel_btn.connect("clicked", self.on_cancel)
+        self.cancel_btn.connect("enter-notify-event", self.on_button_hover)
+        self.cancel_btn.connect("leave-notify-event", self.on_button_leave)
         button_box.pack_start(self.cancel_btn, True, True, 0)
 
         self.load_css()
@@ -89,6 +95,14 @@ class MediaDownloader(Gtk.Window):
 
         self.show_all()
 
+    def on_button_hover(self, widget, event):
+        # Change cursor to a hand when hovering over the button
+        cursor = Gdk.Cursor.new(Gdk.CursorType.HAND2)
+        widget.get_window().set_cursor(cursor)
+
+    def on_button_leave(self, widget, event):
+        # Change cursor back to default when leaving the button
+        widget.get_window().set_cursor(None)
     def load_download_directory(self):
         """Load the default download directory from a JSON config file."""
         if os.path.exists(CONFIG_FILE):
@@ -104,25 +118,19 @@ class MediaDownloader(Gtk.Window):
             json.dump(config, config_file)
 
     def fetch_video_title(self, url):
-        """Fetch video title using yt-dlp's JSON output."""
         MAX_TITLE_LENGTH = 70
-        try:
-            result = subprocess.run(
-                ["yt-dlp", "--print-json", "--no-warnings", "--skip-download", url],
-                capture_output=True,
-                text=True
-            )
-            video_data = json.loads(result.stdout)
-            video_title = video_data.get("title", "Unknown Title")
+        result = subprocess.run(
+            ["yt-dlp", "--print-json", "--no-warnings", "--skip-download", url],
+            capture_output=True,
+            text=True
+        )
+        video_data = json.loads(result.stdout)
+        video_title = video_data.get("title", "Unknown Title")
 
-            if len(video_title) > MAX_TITLE_LENGTH:
-                video_title = video_title[:MAX_TITLE_LENGTH] + '...' 
-            # Update the entry in the main thread
-            GLib.idle_add(self.name_entry.set_text, video_title)
-
-        except Exception as e:
-            print(f"Error fetching video title: {e}")
-            GLib.idle_add(self.name_entry.set_text, "Unknown Title")
+        if len(video_title) > MAX_TITLE_LENGTH:
+            video_title = video_title[:MAX_TITLE_LENGTH] + '...'
+        # Update the entry in the main thread
+        GLib.idle_add(self.name_entry.set_text, video_title)
 
     def load_css(self):
         css_provider = Gtk.CssProvider()
